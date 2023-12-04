@@ -1,0 +1,13 @@
+[package]
+name = "adventofrust"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+adventofrust2022 = { path = "2022" }
+adventofrust2023 = { path = "2023" }
+
+[workspace]
+members = [ "2022", "2023" ]
