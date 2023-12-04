@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, u32},
-    combinator::map,
+    combinator::value,
     multi::separated_list1,
     IResult,
 };
@@ -17,6 +17,7 @@ struct BallSet {
     blue_cnt: u32,
 }
 
+#[derive(Debug, Clone, Copy)]
 enum BallColor {
     Red,
     Green,
@@ -29,9 +30,9 @@ impl BallSet {
         let (i, n) = u32(i)?;
         let (i, _) = char(' ')(i)?;
         let (i, color) = alt((
-            map(tag("red"), |_| BallColor::Red),
-            map(tag("green"), |_| BallColor::Green),
-            map(tag("blue"), |_| BallColor::Blue),
+            value(BallColor::Red, tag("red")),
+            value(BallColor::Green, tag("green")),
+            value(BallColor::Blue, tag("blue")),
         ))(i)?;
         Ok((i, (n, color)))
     }
