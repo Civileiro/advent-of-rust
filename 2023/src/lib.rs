@@ -21,12 +21,12 @@ mod day2;
 // mod day25;
 mod day3;
 mod day4;
-mod grid;
-// mod day5;
+mod day5;
 // mod day6;
 // mod day7;
 // mod day8;
 // mod day9;
+mod grid;
 
 fn result_display<T, E>(result: Result<T, E>) -> String
 where
@@ -70,8 +70,8 @@ pub fn time_all_days_2023(input_folder: &str) -> Duration {
         run_day!(input_folder, "/3.txt" => day3::day3_2),
         run_day!(input_folder, "/4.txt" => day4::day4_1),
         run_day!(input_folder, "/4.txt" => day4::day4_2),
-        // run_day!(input_folder, "/5.txt" => day5::day5_1),
-        // run_day!(input_folder, "/5.txt" => day5::day5_2),
+        run_day!(input_folder, "/5.txt" => day5::day5_1),
+        run_day!(input_folder, "/5.txt" => day5::day5_2),
         // run_day!(input_folder, "/6.txt" => day6::day6_1),
         // run_day!(input_folder, "/6.txt" => day6::day6_2),
         // run_day!(input_folder, "/7.txt" => day7::day7_1),
