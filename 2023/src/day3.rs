@@ -1,4 +1,4 @@
-use crate::grid::{AsciiGrid, CoordIterator, Grid};
+use crate::grid::{AsciiGrid, Coord, CoordIterator, Grid};
 
 fn is_symbol(byte: u8) -> bool {
     !byte.is_ascii_digit() && byte != b'.'
@@ -6,7 +6,7 @@ fn is_symbol(byte: u8) -> bool {
 
 fn number_end(grid: &impl Grid<Item = u8>, line: usize, x_start: usize) -> usize {
     let mut x_end = x_start;
-    while let Some(c) = grid.index(x_end, line) {
+    while let Some(c) = grid.get(x_end, line) {
         if !c.is_ascii_digit() {
             break;
         }
@@ -19,8 +19,8 @@ pub fn day3_1(input: &str) -> Result<u32, ()> {
     let grid = AsciiGrid::from_ascii(input.as_bytes());
     let mut sum = 0;
     let mut skip = false;
-    for (x, y) in grid.coord_iter() {
-        let c = grid.index(x, y).unwrap();
+    for Coord { x, y } in grid.coord_iter() {
+        let c = grid.get(x, y).unwrap();
         if !c.is_ascii_digit() {
             skip = false;
             continue;
@@ -31,8 +31,10 @@ pub fn day3_1(input: &str) -> Result<u32, ()> {
         let mut touches_symbol = false;
         let x0 = x;
         let x1 = number_end(&grid, y, x0);
-        for (xs, ys) in CoordIterator::new(x0.saturating_sub(1), y.saturating_sub(1), x1, y + 1) {
-            let Some(byte) = grid.index(xs, ys) else {
+        for Coord { x: xs, y: ys } in
+            CoordIterator::new(x0.saturating_sub(1), y.saturating_sub(1), x1, y + 1)
+        {
+            let Some(&byte) = grid.get(xs, ys) else {
                 continue;
             };
             if is_symbol(byte) {
@@ -112,7 +114,7 @@ struct GridNumber {
 fn get_grid_num(grid: &AsciiGrid, line: usize, x: usize) -> GridNumber {
     let mut x0 = x;
     let mut x1 = x;
-    while let Some(c) = grid.index(x0, line) {
+    while let Some(c) = grid.get(x0, line) {
         if !c.is_ascii_digit() {
             x0 += 1;
             break;
@@ -122,7 +124,7 @@ fn get_grid_num(grid: &AsciiGrid, line: usize, x: usize) -> GridNumber {
         }
         x0 -= 1;
     }
-    while let Some(c) = grid.index(x1, line) {
+    while let Some(c) = grid.get(x1, line) {
         if !c.is_ascii_digit() {
             break;
         }
@@ -136,14 +138,16 @@ fn get_grid_num(grid: &AsciiGrid, line: usize, x: usize) -> GridNumber {
 pub fn day3_2(input: &str) -> Result<u32, ()> {
     let grid = AsciiGrid::from_ascii(input.as_bytes());
     let mut sum = 0;
-    for (x, y) in grid.coord_iter() {
-        let c = grid.index(x, y).unwrap();
+    for Coord { x, y } in grid.coord_iter() {
+        let &c = grid.get(x, y).unwrap();
         if c != b'*' {
             continue;
         }
         let mut pair = PairSet::new();
-        for (xs, ys) in CoordIterator::new(x.saturating_sub(1), y.saturating_sub(1), x + 1, y + 1) {
-            let Some(b) = grid.index(xs, ys) else {
+        for Coord { x: xs, y: ys } in
+            CoordIterator::new(x.saturating_sub(1), y.saturating_sub(1), x + 1, y + 1)
+        {
+            let Some(b) = grid.get(xs, ys) else {
                 continue;
             };
             if !b.is_ascii_digit() {

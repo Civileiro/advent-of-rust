@@ -1,3 +1,109 @@
+#![allow(dead_code)]
+
+use itertools::Itertools;
+use num::Integer;
+use strum::EnumIter;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Coord {
+    pub x: usize,
+    pub y: usize,
+}
+
+impl Coord {
+    pub fn left(&self) -> Option<Self> {
+        if self.x == 0 {
+            None
+        } else {
+            Some(Self {
+                x: self.x - 1,
+                ..*self
+            })
+        }
+    }
+    pub fn go_left(&mut self) -> bool {
+        if self.x == 0 {
+            false
+        } else {
+            self.x -= 1;
+            true
+        }
+    }
+    pub fn right(&self) -> Option<Self> {
+        Some(Self {
+            x: self.x + 1,
+            ..*self
+        })
+    }
+    pub fn go_right(&mut self) -> bool {
+        self.x += 1;
+        true
+    }
+    pub fn up(&self) -> Option<Self> {
+        if self.y == 0 {
+            None
+        } else {
+            Some(Self {
+                y: self.y - 1,
+                ..*self
+            })
+        }
+    }
+    pub fn go_up(&mut self) -> bool {
+        if self.y == 0 {
+            false
+        } else {
+            self.y -= 1;
+            true
+        }
+    }
+    pub fn down(&self) -> Option<Self> {
+        Some(Self {
+            y: self.y + 1,
+            ..*self
+        })
+    }
+    pub fn go_down(&mut self) -> bool {
+        self.y += 1;
+        true
+    }
+    pub fn at_dir(&self, dir: Direction) -> Option<Self> {
+        match dir {
+            Direction::Up => self.up(),
+            Direction::Down => self.down(),
+            Direction::Left => self.left(),
+            Direction::Right => self.right(),
+        }
+    }
+    pub fn go_dir(&mut self, dir: Direction) -> bool {
+        match dir {
+            Direction::Up => self.go_up(),
+            Direction::Down => self.go_down(),
+            Direction::Left => self.go_left(),
+            Direction::Right => self.go_right(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, EnumIter)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl Direction {
+    pub fn opposite(&self) -> Self {
+        match self {
+            Self::Up => Self::Down,
+            Self::Down => Self::Up,
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+        }
+    }
+}
+
 pub trait Grid {
     type Item;
 
@@ -5,7 +111,13 @@ pub trait Grid {
     fn y0(&self) -> usize;
     fn x1(&self) -> usize;
     fn y1(&self) -> usize;
-    fn index(&self, x: usize, y: usize) -> Option<Self::Item>;
+    fn in_bounds(&self, x: usize, y: usize) -> bool {
+        x <= self.x1() && y <= self.y1()
+    }
+    fn get(&self, x: usize, y: usize) -> Option<&Self::Item>;
+    fn get_coord(&self, Coord { x, y }: Coord) -> Option<&Self::Item> {
+        self.get(x, y)
+    }
     fn width(&self) -> usize {
         self.x1() - self.x0() + 1
     }
@@ -14,6 +126,20 @@ pub trait Grid {
     }
     fn coord_iter(&self) -> CoordIterator {
         CoordIterator::new(self.x0(), self.y0(), self.x1(), self.y1())
+    }
+    fn find_coord<P>(&self, pred: P) -> Option<Coord>
+    where
+        P: Fn(&<Self as Grid>::Item) -> bool,
+    {
+        self.coord_iter()
+            .find(|&coord| pred(self.get_coord(coord).unwrap()))
+    }
+}
+
+pub trait MutGrid: Grid {
+    fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Self::Item>;
+    fn get_coord_mut(&mut self, Coord { x, y }: Coord) -> Option<&mut Self::Item> {
+        self.get_mut(x, y)
     }
 }
 
@@ -44,9 +170,17 @@ impl<'a> AsciiGrid<'a> {
             height,
         }
     }
-    pub fn range(&self, line: usize, x0: usize, x1: usize) -> &[u8] {
+    pub fn range(&self, line: usize, x0: usize, x1: usize) -> &[<Self as Grid>::Item] {
         let line_gap = line * (self.width + 1);
         &self.ascii[(line_gap + x0)..(line_gap + x1)]
+    }
+    pub fn find_coord<P>(&self, pred: P) -> Option<Coord>
+    where
+        P: FnMut(&<Self as Grid>::Item) -> bool,
+    {
+        let (pos, _) = self.ascii.iter().copied().find_position(pred)?;
+        let (y, x) = pos.div_rem(&(self.width() + 1));
+        Some(Coord { x, y })
     }
 }
 
@@ -74,11 +208,11 @@ impl<'a> Grid for AsciiGrid<'a> {
         self.height
     }
 
-    fn index(&self, x: usize, y: usize) -> Option<Self::Item> {
+    fn get(&self, x: usize, y: usize) -> Option<&Self::Item> {
         if x >= self.width || y >= self.height {
             None
         } else {
-            Some(self.ascii[y * (self.width + 1) + x])
+            Some(&self.ascii[y * (self.width + 1) + x])
         }
     }
 }
@@ -108,13 +242,16 @@ impl CoordIterator {
 }
 
 impl Iterator for CoordIterator {
-    type Item = (usize, usize);
+    type Item = Coord;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.y > self.y1 {
             return None;
         }
-        let res = Some((self.x, self.y));
+        let res = Some(Coord {
+            x: self.x,
+            y: self.y,
+        });
         if self.x >= self.x1 {
             self.x = self.x0;
             self.y += 1;
@@ -122,5 +259,64 @@ impl Iterator for CoordIterator {
             self.x += 1;
         }
         res
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VecGrid<T> {
+    pub width: usize,
+    pub height: usize,
+    pub grid_raw: Vec<T>,
+}
+
+impl<T: Clone> VecGrid<T> {
+    pub fn new(width: usize, height: usize, default: T) -> Self {
+        let grid_raw = vec![default; width * height];
+        assert_eq!(width * height, grid_raw.len());
+        Self {
+            width,
+            height,
+            grid_raw,
+        }
+    }
+}
+
+impl<T> VecGrid<T> {}
+
+impl<T> Grid for VecGrid<T> {
+    type Item = T;
+
+    fn x0(&self) -> usize {
+        0
+    }
+
+    fn y0(&self) -> usize {
+        0
+    }
+
+    fn x1(&self) -> usize {
+        self.width - 1
+    }
+
+    fn y1(&self) -> usize {
+        self.height - 1
+    }
+
+    fn get(&self, x: usize, y: usize) -> Option<&Self::Item> {
+        if !self.in_bounds(x, y) {
+            None
+        } else {
+            Some(&self.grid_raw[y * self.width + x])
+        }
+    }
+}
+
+impl<T> MutGrid for VecGrid<T> {
+    fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Self::Item> {
+        if !self.in_bounds(x, y) {
+            None
+        } else {
+            Some(&mut self.grid_raw[y * self.width + x])
+        }
     }
 }
