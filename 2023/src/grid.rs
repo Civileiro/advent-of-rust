@@ -83,6 +83,9 @@ impl Coord {
             Direction::Right => self.go_right(),
         }
     }
+    pub fn manhattan_distance(&self, other: &Self) -> usize {
+        self.x.abs_diff(other.x) + self.y.abs_diff(other.y)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, EnumIter)]
@@ -134,12 +137,161 @@ pub trait Grid {
         self.coord_iter()
             .find(|&coord| pred(self.get_coord(coord).unwrap()))
     }
+    fn lines(&self) -> Lines<Self>
+    where
+        Self: Sized,
+    {
+        Lines::new(self)
+    }
+    fn columns(&self) -> Columns<Self>
+    where
+        Self: Sized,
+    {
+        Columns::new(self)
+    }
 }
 
 pub trait MutGrid: Grid {
     fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Self::Item>;
     fn get_coord_mut(&mut self, Coord { x, y }: Coord) -> Option<&mut Self::Item> {
         self.get_mut(x, y)
+    }
+}
+
+pub struct CoordIterator {
+    x0: usize,
+    // y0: usize,
+    x1: usize,
+    y1: usize,
+    x: usize,
+    y: usize,
+}
+
+impl CoordIterator {
+    pub fn new(x0: usize, y0: usize, x1: usize, y1: usize) -> Self {
+        assert!(x0 <= x1);
+        assert!(y0 <= y1);
+        Self {
+            x0,
+            // y0,
+            x1,
+            y1,
+            x: x0,
+            y: y0,
+        }
+    }
+}
+
+impl Iterator for CoordIterator {
+    type Item = Coord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.y > self.y1 {
+            return None;
+        }
+        let res = Some(Coord {
+            x: self.x,
+            y: self.y,
+        });
+        if self.x >= self.x1 {
+            self.x = self.x0;
+            self.y += 1;
+        } else {
+            self.x += 1;
+        }
+        res
+    }
+}
+
+pub struct LineIterator<'a, G: Grid> {
+    grid: &'a G,
+    line: usize,
+    x: usize,
+}
+
+impl<'a, G: Grid> LineIterator<'a, G> {
+    fn new(grid: &'a G, line: usize) -> LineIterator<'a, G> {
+        Self { grid, line, x: 0 }
+    }
+}
+
+impl<'a, G: Grid> Iterator for LineIterator<'a, G> {
+    type Item = &'a G::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let elem = self.grid.get(self.x, self.line);
+        self.x += 1;
+        elem
+    }
+}
+
+pub struct Lines<'a, G: Grid> {
+    grid: &'a G,
+    line: usize,
+}
+
+impl<'a, G: Grid> Lines<'a, G> {
+    fn new(grid: &'a G) -> Lines<'a, G> {
+        Self { grid, line: 0 }
+    }
+}
+
+impl<'a, G: Grid> Iterator for Lines<'a, G> {
+    type Item = LineIterator<'a, G>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.line == self.grid.height() {
+            return None;
+        }
+        let iter = LineIterator::new(self.grid, self.line);
+        self.line += 1;
+        Some(iter)
+    }
+}
+
+pub struct ColumnIterator<'a, G: Grid> {
+    grid: &'a G,
+    column: usize,
+    y: usize,
+}
+
+impl<'a, G: Grid> ColumnIterator<'a, G> {
+    fn new(grid: &'a G, column: usize) -> ColumnIterator<'a, G> {
+        Self { grid, column, y: 0 }
+    }
+}
+
+impl<'a, G: Grid> Iterator for ColumnIterator<'a, G> {
+    type Item = &'a G::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let elem = self.grid.get(self.column, self.y);
+        self.y += 1;
+        elem
+    }
+}
+
+pub struct Columns<'a, G: Grid> {
+    grid: &'a G,
+    column: usize,
+}
+
+impl<'a, G: Grid> Columns<'a, G> {
+    fn new(grid: &'a G) -> Columns<'a, G> {
+        Self { grid, column: 0 }
+    }
+}
+
+impl<'a, G: Grid> Iterator for Columns<'a, G> {
+    type Item = ColumnIterator<'a, G>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.column == self.grid.width() {
+            return None;
+        }
+        let iter = ColumnIterator::new(self.grid, self.column);
+        self.column += 1;
+        Some(iter)
     }
 }
 
@@ -214,51 +366,6 @@ impl<'a> Grid for AsciiGrid<'a> {
         } else {
             Some(&self.ascii[y * (self.width + 1) + x])
         }
-    }
-}
-
-pub struct CoordIterator {
-    x0: usize,
-    // y0: usize,
-    x1: usize,
-    y1: usize,
-    x: usize,
-    y: usize,
-}
-
-impl CoordIterator {
-    pub fn new(x0: usize, y0: usize, x1: usize, y1: usize) -> Self {
-        assert!(x0 <= x1);
-        assert!(y0 <= y1);
-        Self {
-            x0,
-            // y0,
-            x1,
-            y1,
-            x: x0,
-            y: y0,
-        }
-    }
-}
-
-impl Iterator for CoordIterator {
-    type Item = Coord;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.y > self.y1 {
-            return None;
-        }
-        let res = Some(Coord {
-            x: self.x,
-            y: self.y,
-        });
-        if self.x >= self.x1 {
-            self.x = self.x0;
-            self.y += 1;
-        } else {
-            self.x += 1;
-        }
-        res
     }
 }
 

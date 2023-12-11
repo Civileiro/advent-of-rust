@@ -2,7 +2,7 @@ use std::{fmt::Display, time::Duration};
 
 mod day1;
 mod day10;
-// mod day11;
+mod day11;
 // mod day12;
 // mod day13;
 // mod day14;
@@ -82,8 +82,8 @@ pub fn time_all_days_2023(input_folder: &str) -> Duration {
         run_day!(input_folder, "/9.txt" => day9::day9_2),
         run_day!(input_folder, "/10.txt" => day10::day10_1),
         run_day!(input_folder, "/10.txt" => day10::day10_2),
-        // run_day!(input_folder, "/11.txt" => day11::day11_1),
-        // run_day!(input_folder, "/11.txt" => day11::day11_2),
+        run_day!(input_folder, "/11.txt" => day11::day11_1),
+        run_day!(input_folder, "/11.txt" => day11::day11_2),
         // run_day!(input_folder, "/12.txt" => day12::day12_1),
         // run_day!(input_folder, "/12.txt" => day12::day12_2),
         // run_day!(input_folder, "/13.txt" => day13::day13_1),
