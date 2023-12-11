@@ -108,7 +108,7 @@ pub fn day2_2(input: &str) -> Result<u32, ParseError> {
 
 #[cfg(test)]
 mod tests {
-    use super::day2_1;
+    use super::{day2_1, day2_2};
 
     const INPUT: &str = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
 Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
@@ -125,7 +125,7 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
 
     #[test]
     fn test_day2_2() {
-        let res = day2_1(INPUT);
-        assert_eq!(res, Ok(8))
+        let res = day2_2(INPUT);
+        assert_eq!(res, Ok(2286))
     }
 }
