@@ -105,6 +105,12 @@ impl Direction {
             Self::Right => Self::Left,
         }
     }
+    pub fn is_horizontal(&self) -> bool {
+        matches!(self, Self::Left | Self::Right)
+    }
+    pub fn is_vertical(&self) -> bool {
+        matches!(self, Self::Up | Self::Down)
+    }
 }
 
 pub trait Grid {
@@ -137,6 +143,12 @@ pub trait Grid {
         self.coord_iter()
             .find(|&coord| pred(self.get_coord(coord).unwrap()))
     }
+    fn iter(&self) -> GridIterator<Self>
+    where
+        Self: Sized,
+    {
+        GridIterator::new(self)
+    }
     fn lines(&self) -> Lines<Self>
     where
         Self: Sized,
@@ -155,6 +167,34 @@ pub trait MutGrid: Grid {
     fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Self::Item>;
     fn get_coord_mut(&mut self, Coord { x, y }: Coord) -> Option<&mut Self::Item> {
         self.get_mut(x, y)
+    }
+    fn set_horizontal_range(
+        &mut self,
+        line: usize,
+        x0: usize,
+        x1: usize,
+        mut iter: impl Iterator<Item = Self::Item>,
+    ) {
+        for x in x0..=x1 {
+            match (self.get_mut(x, line), iter.next()) {
+                (Some(item), Some(next)) => *item = next,
+                _ => break,
+            }
+        }
+    }
+    fn set_vertical_range(
+        &mut self,
+        column: usize,
+        y0: usize,
+        y1: usize,
+        mut iter: impl Iterator<Item = Self::Item>,
+    ) {
+        for y in y0..=y1 {
+            match (self.get_mut(column, y), iter.next()) {
+                (Some(item), Some(next)) => *item = next,
+                _ => break,
+            }
+        }
     }
 }
 
@@ -201,8 +241,48 @@ impl Iterator for CoordIterator {
         }
         res
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.y > self.y1 {
+            return (0, Some(0));
+        }
+        let remaining = (self.x1 - self.x + 1) + (self.x1 - self.x0 + 1) * (self.y1 - self.y);
+        (remaining, Some(remaining))
+    }
 }
 
+impl ExactSizeIterator for CoordIterator {}
+
+pub struct GridIterator<'a, G: Grid> {
+    grid: &'a G,
+    coord_iter: CoordIterator,
+}
+
+impl<'a, G: Grid> GridIterator<'a, G> {
+    fn new(grid: &'a G) -> Self {
+        Self {
+            grid,
+            coord_iter: grid.coord_iter(),
+        }
+    }
+}
+
+impl<'a, G: Grid> Iterator for GridIterator<'a, G> {
+    type Item = &'a <G as Grid>::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next_coord = self.coord_iter.next()?;
+        self.grid.get_coord(next_coord)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.coord_iter.size_hint()
+    }
+}
+
+impl<G: Grid> ExactSizeIterator for GridIterator<'_, G> {}
+
+#[derive(Debug, Clone)]
 pub struct LineIterator<'a, G: Grid> {
     grid: &'a G,
     line: usize,
@@ -210,7 +290,7 @@ pub struct LineIterator<'a, G: Grid> {
 }
 
 impl<'a, G: Grid> LineIterator<'a, G> {
-    fn new(grid: &'a G, line: usize) -> LineIterator<'a, G> {
+    pub fn new(grid: &'a G, line: usize) -> LineIterator<'a, G> {
         Self { grid, line, x: 0 }
     }
 }
@@ -223,8 +303,14 @@ impl<'a, G: Grid> Iterator for LineIterator<'a, G> {
         self.x += 1;
         elem
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.grid.width() - self.x;
+        (remaining, Some(remaining))
+    }
 }
 
+#[derive(Debug, Clone)]
 pub struct Lines<'a, G: Grid> {
     grid: &'a G,
     line: usize,
@@ -247,8 +333,14 @@ impl<'a, G: Grid> Iterator for Lines<'a, G> {
         self.line += 1;
         Some(iter)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.grid.height() - self.line;
+        (remaining, Some(remaining))
+    }
 }
 
+#[derive(Debug, Clone)]
 pub struct ColumnIterator<'a, G: Grid> {
     grid: &'a G,
     column: usize,
@@ -256,7 +348,7 @@ pub struct ColumnIterator<'a, G: Grid> {
 }
 
 impl<'a, G: Grid> ColumnIterator<'a, G> {
-    fn new(grid: &'a G, column: usize) -> ColumnIterator<'a, G> {
+    pub fn new(grid: &'a G, column: usize) -> ColumnIterator<'a, G> {
         Self { grid, column, y: 0 }
     }
 }
@@ -269,15 +361,21 @@ impl<'a, G: Grid> Iterator for ColumnIterator<'a, G> {
         self.y += 1;
         elem
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.grid.height() - self.y;
+        (remaining, Some(remaining))
+    }
 }
 
+#[derive(Debug, Clone)]
 pub struct Columns<'a, G: Grid> {
     grid: &'a G,
     column: usize,
 }
 
 impl<'a, G: Grid> Columns<'a, G> {
-    fn new(grid: &'a G) -> Columns<'a, G> {
+    pub fn new(grid: &'a G) -> Columns<'a, G> {
         Self { grid, column: 0 }
     }
 }
@@ -293,8 +391,14 @@ impl<'a, G: Grid> Iterator for Columns<'a, G> {
         self.column += 1;
         Some(iter)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.grid.width() - self.column;
+        (remaining, Some(remaining))
+    }
 }
 
+#[derive(Debug, Clone)]
 pub struct AsciiGrid<'a> {
     ascii: &'a [u8],
     width: usize,
@@ -369,7 +473,7 @@ impl<'a> Grid for AsciiGrid<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VecGrid<T> {
     pub width: usize,
     pub height: usize,
@@ -379,6 +483,17 @@ pub struct VecGrid<T> {
 impl<T: Clone> VecGrid<T> {
     pub fn new(width: usize, height: usize, default: T) -> Self {
         let grid_raw = vec![default; width * height];
+        assert_eq!(width * height, grid_raw.len());
+        Self {
+            width,
+            height,
+            grid_raw,
+        }
+    }
+    pub fn from_iter(width: usize, height: usize, iter: impl Iterator<Item = T>) -> Self {
+        let total = width * height;
+        let mut grid_raw = Vec::with_capacity(total);
+        grid_raw.extend(iter.take(total));
         assert_eq!(width * height, grid_raw.len());
         Self {
             width,
