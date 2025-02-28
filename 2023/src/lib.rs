@@ -5,7 +5,7 @@ mod day10;
 mod day11;
 mod day12;
 mod day13;
-// mod day14;
+mod day14;
 // mod day15;
 // mod day16;
 // mod day17;
@@ -88,8 +88,8 @@ pub fn time_all_days_2023(input_folder: &str) -> Duration {
         run_day!(input_folder, "/12.txt" => day12::day12_2),
         run_day!(input_folder, "/13.txt" => day13::day13_1),
         run_day!(input_folder, "/13.txt" => day13::day13_2),
-        // run_day!(input_folder, "/14.txt" => day14::day14_1),
-        // run_day!(input_folder, "/14.txt" => day14::day14_2),
+        run_day!(input_folder, "/14.txt" => day14::day14_1),
+        run_day!(input_folder, "/14.txt" => day14::day14_2),
         // run_day!(input_folder, "/15.txt" => day15::day15_1),
         // run_day!(input_folder, "/15.txt" => day15::day15_2),
         // run_day!(input_folder, "/16.txt" => day16::day16_1),
